@@ -33,7 +33,5 @@ app:
 palette:
 	$(PYTHON) -m src.visualization.palette_check
 
-# Comandos personales de la autora (compilar la memoria, empaquetar la
-# entrega). El fichero no se versiona ni viaja en el zip, así que en la
-# entrega este include se ignora en silencio.
+# Comandos personales
 -include author.mk

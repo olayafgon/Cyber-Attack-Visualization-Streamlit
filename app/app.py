@@ -44,14 +44,70 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# Streamlit themes its widgets and Altair follows; injected CSS cannot.
+# Streamlit does not rerun the script when the theme changes in its settings
+# menu, so st.context.theme still reports the previous variant and the charts
+# keep a palette built for the other background (streamlit/streamlit#11920).
+# This probe reads the background colour Streamlit hands to every component,
+# which does follow the menu, and publishes it back so the run that redraws
+# the charts knows which variant they are sitting on.
+_THEME_PROBE_JS = r"""
+export default function (component) {
+  const { parentElement, setStateValue } = component
+
+  const readVariant = () => {
+    const raw = getComputedStyle(parentElement)
+      .getPropertyValue("--st-background-color")
+      .trim()
+    if (!raw) return null
+    // Resolving through a span normalises hex, rgb() and named colours alike.
+    const probe = document.createElement("span")
+    probe.style.color = raw
+    parentElement.appendChild(probe)
+    const channels = getComputedStyle(probe).color.match(/[\d.]+/g)
+    probe.remove()
+    if (!channels || channels.length < 3) return null
+    const [r, g, b] = channels.slice(0, 3).map(Number)
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b < 128 ? "dark" : "light"
+  }
+
+  let published = null
+  const publish = () => {
+    const variant = readVariant()
+    if (variant && variant !== published) {
+      published = variant
+      setStateValue("variant", variant)
+    }
+  }
+
+  publish()
+  const timer = setInterval(publish, 400)
+  return () => clearInterval(timer)
+}
+"""
+
+_theme_probe = st.components.v2.component(
+    "theme_probe",
+    html="<span></span>",
+    css=":host { display: block; height: 0; }",
+    js=_THEME_PROBE_JS,
+)
+
+
 def active_theme_is_dark() -> bool:
     """Reports whether the viewer has the dark variant active.
 
+    Mounts the probe and trusts what it reports. Its first answer arrives on
+    the rerun after mounting, so until then the value Streamlit itself
+    reports stands in, which is right on every load that does not follow a
+    theme change.
+
     Returns:
-        True for the dark variant, the default when Streamlit cannot infer
-        the theme yet (first load of a session).
+        True for the dark variant, the default while nothing is known yet.
     """
+    with st.sidebar:
+        probe = _theme_probe(key="theme_probe", on_variant_change=lambda: None)
+    if probe.variant in ("dark", "light"):
+        return probe.variant == "dark"
     theme_info = getattr(st.context, "theme", None)
     return (getattr(theme_info, "type", None) or "dark") == "dark"
 
