@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Data
+data/raw/*
+!data/raw/.gitkeep
+data/processed/preview/
+docs/
+
+# IA
+CLAUDE.md
+.claude/
+.agents/
+
+# Comandos personales y memoria
+author.mk
+memoria/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Artefactos de empaquetado
+E3-*.zip
+build/
+figures/

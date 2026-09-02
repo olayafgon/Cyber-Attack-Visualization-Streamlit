@@ -1,0 +1,12 @@
+# Cotas mínimas reales: la app usa alt.theme.register (Altair 5.5) y los
+# argumentos width="stretch" y on_select de st.altair_chart (Streamlit 1.49).
+# Validado con Altair 6.2.2, Streamlit 1.59.1, pandas 3.0.0 y pyarrow 24.0.0.
+altair>=5.5
+streamlit>=1.49
+pandas>=2.2
+numpy>=1.26
+pyarrow>=16.0
+requests>=2.31
+pycountry>=23.12
+vl-convert-python>=1.3
+jupyterlab>=4.0

@@ -1,0 +1,23 @@
+# Las dos variantes se declaran aquí para que Streamlit tematice también sus
+# propios controles (botones, desplegables, conmutador, divisores), que se
+# estilizan desde JavaScript y no atienden a CSS inyectado. La app arranca en
+# oscuro, propio de un centro de operaciones, y se cambia desde el menú de
+# ajustes. Los colores son los del sistema visual del proyecto.
+[theme]
+base = "dark"
+
+[theme.light]
+primaryColor = "#485ea1"
+backgroundColor = "#ffffff"
+secondaryBackgroundColor = "#f1f5f9"
+textColor = "#0f172a"
+borderColor = "#cbd5e1"
+showWidgetBorder = true
+
+[theme.dark]
+primaryColor = "#909ce0"
+backgroundColor = "#0b1220"
+secondaryBackgroundColor = "#141f33"
+textColor = "#eef4fb"
+borderColor = "#24324d"
+showWidgetBorder = true
