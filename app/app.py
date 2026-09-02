@@ -54,20 +54,35 @@ _THEME_PROBE_JS = r"""
 export default function (component) {
   const { parentElement, setStateValue } = component
 
-  const readVariant = () => {
-    const raw = getComputedStyle(parentElement)
-      .getPropertyValue("--st-background-color")
-      .trim()
-    if (!raw) return null
-    // Resolving through a span normalises hex, rgb() and named colours alike.
-    const probe = document.createElement("span")
-    probe.style.color = raw
-    parentElement.appendChild(probe)
-    const channels = getComputedStyle(probe).color.match(/[\d.]+/g)
-    probe.remove()
+  // parentElement is the ShadowRoot the component is mounted in, and
+  // getComputedStyle only takes elements, so resolve to its host.
+  const host = parentElement.host ?? parentElement
+  const swatch = parentElement.querySelector("span")
+  if (!host || host.nodeType !== 1 || !swatch) return
+
+  const luminance = (color) => {
+    // Painting the value on a real element normalises hex, rgb() and
+    // named colours to the same rgb() form on read-back.
+    swatch.style.color = color
+    const channels = getComputedStyle(swatch).color.match(/[\d.]+/g)
     if (!channels || channels.length < 3) return null
     const [r, g, b] = channels.slice(0, 3).map(Number)
-    return 0.2126 * r + 0.7152 * g + 0.0722 * b < 128 ? "dark" : "light"
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b
+  }
+
+  const readVariant = () => {
+    let background = getComputedStyle(host)
+      .getPropertyValue("--st-background-color")
+      .trim()
+    if (!background) {
+      // The variable is the reliable source, but fall back to the painted
+      // background of the app shell if a Streamlit build stops exposing it.
+      const shell = document.querySelector(".stApp") ?? document.body
+      background = shell ? getComputedStyle(shell).backgroundColor : ""
+    }
+    if (!background || background === "transparent") return null
+    const value = luminance(background)
+    return value === null ? null : value < 128 ? "dark" : "light"
   }
 
   let published = null
