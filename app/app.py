@@ -51,8 +51,12 @@ st.markdown(
 # which does follow the menu, and publishes it back so the run that redraws
 # the charts knows which variant they are sitting on.
 _THEME_PROBE_JS = r"""
+// The default export runs on every rerun, not just on mount, so anything
+// that must survive one lives here, keyed by the instance it belongs to.
+const INSTANCES = new WeakMap()
+
 export default function (component) {
-  const { parentElement, setStateValue } = component
+  const { parentElement, data, setStateValue } = component
 
   // parentElement is the ShadowRoot the component is mounted in, and
   // getComputedStyle only takes elements, so resolve to its host.
@@ -60,18 +64,27 @@ export default function (component) {
   const swatch = parentElement.querySelector("span")
   if (!host || host.nodeType !== 1 || !swatch) return
 
+  let instance = INSTANCES.get(parentElement)
+  if (!instance) {
+    instance = { timer: null }
+    INSTANCES.set(parentElement, instance)
+  }
+  // Python holds the truth about what it has already been told, so a value
+  // it already knows is never worth another rerun.
+  Object.assign(instance, { host, swatch, setStateValue, known: data?.variant ?? null })
+
   const luminance = (color) => {
     // Painting the value on a real element normalises hex, rgb() and
     // named colours to the same rgb() form on read-back.
-    swatch.style.color = color
-    const channels = getComputedStyle(swatch).color.match(/[\d.]+/g)
+    instance.swatch.style.color = color
+    const channels = getComputedStyle(instance.swatch).color.match(/[\d.]+/g)
     if (!channels || channels.length < 3) return null
     const [r, g, b] = channels.slice(0, 3).map(Number)
     return 0.2126 * r + 0.7152 * g + 0.0722 * b
   }
 
   const readVariant = () => {
-    let background = getComputedStyle(host)
+    let background = getComputedStyle(instance.host)
       .getPropertyValue("--st-background-color")
       .trim()
     if (!background) {
@@ -85,20 +98,27 @@ export default function (component) {
     return value === null ? null : value < 128 ? "dark" : "light"
   }
 
-  let published = null
   const publish = () => {
     const variant = readVariant()
-    if (variant && variant !== published) {
-      published = variant
-      setStateValue("variant", variant)
+    if (variant && variant !== instance.known) {
+      instance.known = variant
+      instance.setStateValue("variant", variant)
     }
   }
 
   publish()
-  const timer = setInterval(publish, 400)
-  return () => clearInterval(timer)
+  if (instance.timer === null) {
+    instance.timer = setInterval(publish, 500)
+  }
+
+  return () => {
+    clearInterval(instance.timer)
+    INSTANCES.delete(parentElement)
+  }
 }
 """
+
+_THEME_PROBE_KEY = "theme_probe"
 
 _theme_probe = st.components.v2.component(
     "theme_probe",
@@ -119,8 +139,13 @@ def active_theme_is_dark() -> bool:
     Returns:
         True for the dark variant, the default while nothing is known yet.
     """
+    reported = st.session_state.get(_THEME_PROBE_KEY) or {}
     with st.sidebar:
-        probe = _theme_probe(key="theme_probe", on_variant_change=lambda: None)
+        probe = _theme_probe(
+            key=_THEME_PROBE_KEY,
+            data={"variant": reported.get("variant")},
+            on_variant_change=lambda: None,
+        )
     if probe.variant in ("dark", "light"):
         return probe.variant == "dark"
     theme_info = getattr(st.context, "theme", None)
