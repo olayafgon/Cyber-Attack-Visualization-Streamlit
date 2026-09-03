@@ -1,10 +1,10 @@
 # Panorama global de ciberataques y vulnerabilidades (2015-2025)
 
-Visualización interactiva del panorama global de ciberseguridad en la última década, desarrollada como caso práctico de la asignatura **Visualización de Datos** del Máster en Ingeniería y Ciencia de Datos (UNED).
+Visualización interactiva del panorama global de ciberseguridad en la última década, caso práctico de la asignatura Visualización de Datos del Máster en Ingeniería y Ciencia de Datos (UNED).
 
-**Autora:** Olaya Folgueiras González
+Autora: Olaya Folgueiras González
 
-El proyecto integra siete fuentes de datos abiertas en un pipeline reproducible y responde, mediante doce visualizaciones construidas con **Altair** e integradas en un dashboard **Streamlit**, a preguntas como cómo evolucionan el volumen y la gravedad de las vulnerabilidades, qué sectores sufre cada tipo de ataque, si lo más grave coincide con lo más explotado, y cuál es el impacto del cibercrimen en usuarios y economía.
+El proyecto integra siete fuentes de datos abiertas en un pipeline reproducible. Con Altair construimos doce visualizaciones, integradas en un dashboard Streamlit, sobre cómo evolucionan el volumen y la gravedad de las vulnerabilidades, qué sectores sufre cada tipo de ataque, si lo más grave coincide con lo más explotado y cuál es el impacto del cibercrimen en usuarios y economía.
 
 | Fuente                                                                   | Contenido                                      | Registros usados |
 | ------------------------------------------------------------------------ | ---------------------------------------------- | ---------------- |
@@ -18,18 +18,15 @@ El proyecto integra siete fuentes de datos abiertas en un pipeline reproducible 
 
 ## Contenido del repositorio
 
-| Ruta                       | Qué es                                                    |
-| -------------------------- | --------------------------------------------------------- |
-| `app/app.py`               | Dashboard Streamlit, la visualización final                 |
-| `src/`                     | Pipeline completo: adquisición, preprocesado y visualización |
-| `data/processed/`          | Los cinco datasets analíticos en Parquet, listos para usar   |
-| `data/external/`           | Geometrías de países y tabla ISO 3166                        |
-| `notebooks/`               | Análisis exploratorio con las figuras y su trazabilidad      |
-| `Makefile`                 | Todos los comandos del proyecto                              |
+| Ruta              | Qué es                                                     |
+| ----------------- | ---------------------------------------------------------- |
+| `app/app.py`      | Dashboard Streamlit, la visualización final                |
+| `src/`            | Adquisición, preprocesado y visualización                  |
+| `data/processed/` | Los cinco datasets analíticos en Parquet, listos para usar |
+| `data/external/`  | Geometrías de países y tabla ISO 3166                      |
+| `notebooks/`      | Análisis exploratorio con las figuras y su trazabilidad    |
+| `Makefile`        | Todos los comandos del proyecto                            |
 
-**No se incluye `data/raw/`**, unos 145 MB de descargas originales. No hace falta para ejecutar nada, porque los datos procesados vienen incluidos, y se regenera con los comandos de la sección [Datos](#datos).
-
-El razonamiento de diseño y de análisis está en el notebook de EDA, junto a cada gráfico; este fichero solo cubre cómo ejecutar el proyecto.
 
 ## Estructura del repositorio
 
@@ -55,8 +52,11 @@ ciberataques/
 Python 3.10 o superior.
 
 ```bash
-pip install -r requirements.txt
+make env                       # crea .venv e instala las dependencias
+source .venv/bin/activate
 ```
+
+También sirve `pip install -r requirements.txt` en un entorno ya activado, propio o gestionado de otra forma.
 
 ## Ejecutar el dashboard
 
@@ -75,8 +75,6 @@ Se abre en `http://localhost:8501`, con filtros globales (periodo, severidad, fu
 `data/processed/` contiene los cinco datasets analíticos en Parquet (vulnerabilidades enriquecidas con KEV y EPSS, incidentes unificados, brechas, pagos de ransomware y el agregado mensual). Son el resultado del pipeline descrito abajo y bastan para ejecutar el dashboard y el notebook.
 
 ### Regenerar el pipeline desde las fuentes originales (opcional)
-
-No hace falta para nada de lo anterior: los datos procesados vienen incluidos. Estos son los comandos si se quiere rehacer la cadena entera desde el crudo. La descarga es reproducible y no necesita claves de API; cada fuente deja un `manifest.json` con la URL, la fecha y el número de registros obtenidos.
 
 ```bash
 # 1 · Descarga del crudo a data/raw/ (~145 MB, 30-45 min en total)
@@ -106,6 +104,7 @@ Las decisiones de limpieza, filtrado y taxonomías comunes se argumentan en la s
 
 | Comando                                        | Descripción                                       |
 | ---------------------------------------------- | ------------------------------------------------- |
+| `make env`                                     | Crea `.venv` e instala las dependencias           |
 | `make app`                                     | Lanza el dashboard Streamlit                      |
 | `make figures`                                 | Exporta las figuras PNG a `figures/`              |
 | `make palette`                                 | Verifica la separación perceptiva de la paleta    |
@@ -115,7 +114,9 @@ Las decisiones de limpieza, filtrado y taxonomías comunes se argumentan en la s
 
 ## Diseño
 
-El sistema visual parte de una paleta única de familia índigo, definida en `src/visualization/theme.py` y compartida por el cuaderno, la app y las figuras exportadas. Una rampa secuencial de un solo tono codifica volumen y actividad, un gradiente de cuatro pasos que vira al cálido codifica la severidad ordinal, el acento cálido se reserva a la explotación confirmada y el tono solo se usa en variables nominales, mediante una paleta cualitativa derivada de la de Okabe e Ito, diseñada para dicromatopsias. `make palette` mide banda de luminosidad, croma, contraste y separación CIEDE2000 bajo protanopía, deuteranopía y tritanopía, e imprime la paleta de referencia junto a las del proyecto. La justificación de diseño de cada figura, y la de la composición del dashboard, está en el notebook de EDA junto a cada gráfico.
+El sistema visual parte de una paleta única de familia índigo, definida en `src/visualization/theme.py` y compartida por el cuaderno, la app y las figuras exportadas. Una rampa secuencial de un solo tono codifica volumen y actividad. La severidad ordinal usa un gradiente de cuatro pasos que vira al cálido, con ese acento reservado a la explotación confirmada. Las variables nominales usan solo el tono, con una paleta cualitativa derivada de la de Okabe e Ito y pensada para dicromatopsias.
+
+`make palette` mide banda de luminosidad, croma, contraste y separación CIEDE2000 bajo protanopía, deuteranopía y tritanopía, e imprime la paleta de referencia junto a las del proyecto. La justificación de diseño de cada figura, y la de la composición del dashboard, está en el notebook de EDA junto a cada gráfico.
 
 ## Limitaciones de los datos
 

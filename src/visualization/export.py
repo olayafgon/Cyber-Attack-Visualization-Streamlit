@@ -2,8 +2,7 @@
 
 Every figure is built through the same call the app makes, so the printed
 chart and the panel on screen carry the same titles and axis labels. Only
-the subtitles are dropped, because on paper the caption already carries
-those reading notes.
+the subtitles are dropped.
 
 Usage:
     python -m src.visualization.export
@@ -27,8 +26,6 @@ logger = logging.getLogger(__name__)
 PREVIEW_DIR = config.DATA_PROCESSED_DIR / "preview"
 PNG_SCALE_FACTOR = 2.0
 
-# These print narrower than they render, so their type is scaled up at
-# export time to stay readable on paper.
 CWE_PRINT_FONT_SCALE = 1.3
 CAPTURE_PRINT_FONT_SCALE = 1.4
 
@@ -49,11 +46,6 @@ def _strip_subtitles(node: Any) -> None:
 
 def without_subtitles(chart: alt.TopLevelMixin) -> alt.TopLevelMixin:
     """Returns the same chart with its title subtitles dropped.
-
-    On screen a subtitle carries the reading note of its panel. On paper the
-    caption of the figure already says the same thing, so printing both
-    repeats it and steals height from the plot. The titles themselves stay
-    untouched, so the printed figure and the panel keep naming the same view.
 
     Args:
         chart: Any chart, including layered and concatenated ones.

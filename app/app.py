@@ -2,9 +2,6 @@
 
 Run from the project root:
     streamlit run app/app.py
-
-Design justifications for every chart live in the EDA notebook, not here;
-the dashboard itself stays clean for exploration.
 """
 
 from __future__ import annotations
@@ -37,29 +34,17 @@ st.set_page_config(
     layout="wide",
 )
 
-# No native option exists for the top padding; 2.5rem keeps the title clear
-# of the toolbar while dropping most of the default blank band.
 st.markdown(
     "<style>.block-container { padding-top: 2.5rem; }</style>",
     unsafe_allow_html=True,
 )
 
-# Streamlit does not rerun the script when the theme changes in its settings
-# menu, so st.context.theme still reports the previous variant and the charts
-# keep a palette built for the other background (streamlit/streamlit#11920).
-# This probe reads the background colour Streamlit hands to every component,
-# which does follow the menu, and publishes it back so the run that redraws
-# the charts knows which variant they are sitting on.
 _THEME_PROBE_JS = r"""
-// The default export runs on every rerun, not just on mount, so anything
-// that must survive one lives here, keyed by the instance it belongs to.
 const INSTANCES = new WeakMap()
 
 export default function (component) {
   const { parentElement, data, setStateValue } = component
 
-  // parentElement is the ShadowRoot the component is mounted in, and
-  // getComputedStyle only takes elements, so resolve to its host.
   const host = parentElement.host ?? parentElement
   const swatch = parentElement.querySelector("span")
   if (!host || host.nodeType !== 1 || !swatch) return
@@ -69,13 +54,9 @@ export default function (component) {
     instance = { timer: null }
     INSTANCES.set(parentElement, instance)
   }
-  // Python holds the truth about what it has already been told, so a value
-  // it already knows is never worth another rerun.
   Object.assign(instance, { host, swatch, setStateValue, known: data?.variant ?? null })
 
   const luminance = (color) => {
-    // Painting the value on a real element normalises hex, rgb() and
-    // named colours to the same rgb() form on read-back.
     instance.swatch.style.color = color
     const channels = getComputedStyle(instance.swatch).color.match(/[\d.]+/g)
     if (!channels || channels.length < 3) return null
@@ -88,8 +69,6 @@ export default function (component) {
       .getPropertyValue("--st-background-color")
       .trim()
     if (!background) {
-      // The variable is the reliable source, but fall back to the painted
-      // background of the app shell if a Streamlit build stops exposing it.
       const shell = document.querySelector(".stApp") ?? document.body
       background = shell ? getComputedStyle(shell).backgroundColor : ""
     }
@@ -130,11 +109,6 @@ _theme_probe = st.components.v2.component(
 
 def active_theme_is_dark() -> bool:
     """Reports whether the viewer has the dark variant active.
-
-    Mounts the probe and trusts what it reports. Its first answer arrives on
-    the rerun after mounting, so until then the value Streamlit itself
-    reports stands in, which is right on every load that does not follow a
-    theme change.
 
     Returns:
         True for the dark variant, the default while nothing is known yet.
@@ -177,18 +151,15 @@ def render_chart(
     Args:
         builder: Chart constructor from src.visualization.charts.
         df: Analysis-ready frame for the builder.
-        height: Overrides the builder height so charts sharing a row line
-            up; their baselines and plot areas must match to be comparable.
+        height: Overrides the builder height so charts sharing a row line up.
         stretch: Let the chart fill the column, and grow with the fullscreen
-            button. Maps included: the autosize Streamlit injects rescales
-            the projection correctly.
+            button.
         **kwargs: Extra arguments forwarded to the builder.
     """
     if df.empty:
         st.info("Sin datos para los filtros seleccionados.")
         return
     chart = builder(df, **kwargs)
-    # Vega-Lite takes no height on a concatenation; those size their own panels.
     if height is not None and not isinstance(chart, (alt.HConcatChart, alt.VConcatChart)):
         chart = chart.properties(height=height)
     st.altair_chart(localize(chart), width="stretch" if stretch else "content")
@@ -196,11 +167,6 @@ def render_chart(
 
 def render_selectable(chart: alt.Chart, key: str, mode: str) -> list:
     """Renders a chart that publishes its selection back to Python.
-
-    Vega-Lite cannot resize concatenated specs, so the linked views are not
-    concatenated here: each one is its own single-view spec inside a
-    Streamlit column, which lets both stretch with the window. The link is
-    made server-side instead, with the selection returned by on_select.
 
     Args:
         chart: Chart carrying exactly one named selection parameter.
@@ -233,11 +199,6 @@ def show_table(frame: pd.DataFrame) -> None:
 def data_table(label: str, frame: pd.DataFrame, key: str) -> None:
     """Offers the figures behind the charts as a table.
 
-    Several accent colors of the palette sit below the 3:1 contrast ratio
-    against the light surface, and the relief the design system prescribes
-    for that case is an accessible reading of the same numbers. A modal
-    rather than an expander, so opening it never reflows the charts above.
-
     Args:
         label: Text of the button that opens the modal.
         frame: Table to show; nothing is rendered when it is empty.
@@ -249,7 +210,6 @@ def data_table(label: str, frame: pd.DataFrame, key: str) -> None:
         show_table(frame)
 
 
-# Taller than in print: on screen the title and legend sit outside the plot.
 ROW_TALL = 520
 ROW_MID = 400
 ROW_SHORT = 380
@@ -267,7 +227,6 @@ def reset_filters() -> None:
         st.session_state.pop(key, None)
 
 
-# Before any chart is built, while the palette is still being resolved.
 register_theme(dark=active_theme_is_dark())
 
 st.sidebar.title("Filtros")
@@ -278,7 +237,6 @@ year_range = st.sidebar.slider(
     value=(config.ANALYSIS_START_YEAR, config.ANALYSIS_END_YEAR),
     key="f_years",
 )
-# Displays the Spanish reading; translating the option breaks the filter.
 severities = st.sidebar.multiselect(
     "Severidad CVSS",
     SEVERITY_ORDER,
@@ -323,14 +281,12 @@ def filter_all(start: int, end: int) -> dict[str, pd.DataFrame]:
 start_year, end_year = year_range
 current = filter_all(start_year, end_year)
 
-# Ransomwhere answers only to the period, and the KPI label says so.
 payments_in_step = (
     len(severities) == len(SEVERITY_ORDER)
     and len(sources) == len(ALL_SOURCES)
     and len(sectors) == len(all_sectors)
 )
 
-# Halves of equal length, since a preceding window exists only for subranges.
 half_span = (end_year - start_year + 1) // 2
 if half_span >= 1:
     first_half = filter_all(start_year, start_year + half_span - 1)
@@ -341,9 +297,6 @@ else:
 
 def es_number(value: float, decimals: int = 0) -> str:
     """Formats a number with the Spanish thousands and decimal separators.
-
-    Python groups with commas and points the decimal, which is the English
-    convention and clashes with the charts.
 
     Args:
         value: The figure to render.
@@ -375,13 +328,9 @@ def metric_with_delta(
         measure: Reduces one filtered frame to the scalar being tracked.
         fmt: Renders that scalar for display.
         help_text: Scope note for indicators the sidebar filters cannot reach
-            in full, so the reader is never left to assume a figure responds
-            to a filter it does not.
+            in full.
         show_delta: Suppresses the trend when the active filters leave this
             indicator answering a narrower question than the rest of the row.
-            A percentage next to neighbours reading zero invites a comparison
-            that does not hold, and a note the reader has to hover to find
-            does not undo what the row already showed.
     """
     delta = None
     if show_delta and first_half is not None:
@@ -480,7 +429,6 @@ with col_left:
     picked_years = selected_values(render_selectable(temporal, "sel_years", "years"), "year")
 seasonal = current["monthly"]
 if picked_years:
-    # A brush reports either every selected year or just the two ends.
     span = [int(year) for year in picked_years]
     seasonal = seasonal[seasonal["year"].between(min(span), max(span))]
 with col_right:

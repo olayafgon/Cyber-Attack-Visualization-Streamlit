@@ -4,6 +4,7 @@ __pycache__/
 .venv/
 venv/
 *.egg-info/
+.ruff_cache/
 
 # Jupyter
 .ipynb_checkpoints/

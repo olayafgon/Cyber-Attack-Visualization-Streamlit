@@ -153,11 +153,6 @@ def report(name: str, palette: list[str], background: str) -> dict[str, float]:
 def report_no_data(variant: str, ramp: list[str], no_data: str, background: str) -> dict[str, float]:
     """Checks that the missing-data neutral sits outside the ramp it borders.
 
-    The sequential ramps carry magnitude through lightness, so a neutral whose
-    L* falls inside the band the ramp spans is read as a value of the scale
-    however different its hue. It has to clear the band on one side and still
-    separate from the surface, or the cell stops being visible at all.
-
     Args:
         variant: Theme variant name, for the printed heading.
         ramp: The activity ramp swatches of that variant.
@@ -185,7 +180,6 @@ def report_no_data(variant: str, ramp: list[str], no_data: str, background: str)
     return metrics
 
 
-# A published reference line for the project numbers.
 OKABE_ITO = ["#0072b2", "#e69f00", "#009e73", "#cc79a7", "#d55e00", "#56b4e9"]
 
 
@@ -194,7 +188,6 @@ def main() -> int:
     report("Referencia Okabe-Ito", OKABE_ITO, "#ffffff")
     report("Paleta cualitativa, variante clara", theme._CATEGORICAL_LIGHT, "#ffffff")
     report("Paleta cualitativa, variante oscura", theme._CATEGORICAL_DARK, theme.DARK_BACKGROUND)
-    # Each variant against its own surface, never only the light one.
     report("Bandas de severidad, variante clara", theme._SEVERITY_LIGHT, "#ffffff")
     report("Bandas de severidad, variante oscura", theme._SEVERITY_DARK, theme.DARK_BACKGROUND)
     report(

@@ -1,10 +1,19 @@
 PYTHON ?= python3
+VENV := .venv
 
 DATA_SOURCES := kev epss hibp ransomwhere eurepoc vcdb nvd
 
-.PHONY: clean data-all data-verify preprocess preprocess-verify figures app palette $(addprefix data-,$(DATA_SOURCES))
+.PHONY: env clean data-all data-verify preprocess preprocess-verify figures app palette $(addprefix data-,$(DATA_SOURCES))
 
-# Borra solo lo regenerable; conserva los .parquet, que son parte de la entrega.
+# Crea el entorno virtual e instala las dependencias. Con el venv ya creado,
+# repetirlo solo actualiza los paquetes.
+env:
+	$(PYTHON) -m venv $(VENV)
+	$(VENV)/bin/pip install --upgrade pip
+	$(VENV)/bin/pip install -r requirements.txt
+	@echo "Entorno listo. Actívalo con: source $(VENV)/bin/activate"
+
+# Borra solo lo regenerable; conserva los .parquet
 clean:
 	find src app -name "__pycache__" -type d -exec rm -rf {} +
 	rm -rf data/processed/preview .ipynb_checkpoints

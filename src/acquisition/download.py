@@ -37,8 +37,6 @@ OPTIONAL_SOURCES = {"ransomwhere"}
 _SOURCE_ORDER = ("kev", "epss", "hibp", "ransomwhere", "eurepoc", "vcdb", "nvd")
 
 
-# One runner per source, sharing a signature so _RUNNERS can dispatch on the
-# source name alone; only NVD reads anything out of the parsed arguments.
 def _run_kev(args: argparse.Namespace) -> dict:
     destination = config.DATA_RAW_DIR / "kev" / "kev_catalog.json"
     path = kev_client.download(destination)

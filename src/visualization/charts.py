@@ -3,9 +3,6 @@
 Each one takes a processed DataFrame, aggregates it in pandas down to the
 marks actually drawn, and returns a plain Altair chart that the Streamlit
 app and the PNG export both reuse.
-
-The reasoning behind each chart is argued alongside it in the EDA notebook;
-what stays here is what the code alone would not make obvious.
 """
 
 from __future__ import annotations
@@ -143,7 +140,6 @@ ACTOR_LABELS = {
 
 ACTOR_FALLBACK = "Otros / Desconocido"
 
-# Short on purpose: the legend sits under the plot and wraps if longer.
 EXPLOITATION_ORDER = [
     "Sin explotación confirmada",
     "Explotada (KEV)",
@@ -156,9 +152,6 @@ MONTH_ORDER = [MONTH_LABELS[month] for month in range(1, 13)]
 
 def seasonality_frame(df: pd.DataFrame) -> pd.DataFrame:
     """Aggregates CVEs by year and month, with each month's share of its year.
-
-    The share is what makes months comparable across years; the raw count is
-    dominated by the sevenfold growth of the decade.
 
     Args:
         df: Monthly vulnerability aggregate (vulnerabilities_monthly).
@@ -201,7 +194,6 @@ def sector_attack_frame(df: pd.DataFrame) -> tuple[pd.DataFrame, list[str], list
         [sector_order, attack_order], names=["sector", "attack_category"]
     )
     complete = counts.set_index(["sector", "attack_category"]).reindex(grid).reset_index()
-    # Vega-Lite drops a mark with a null quantitative channel; this keeps it.
     complete["plot_count"] = complete["incident_count"].fillna(1)
     complete["incident_label"] = complete["incident_count"].map(
         lambda value: f"{int(value):,}" if pd.notna(value) else "Sin incidentes documentados"
@@ -355,7 +347,6 @@ def build_geographic_risk_chart(df: pd.DataFrame, as_share: bool = False) -> alt
         total = by_country["incident_count"].sum()
         by_country["share"] = by_country["incident_count"] / total if total else 0.0
     countries = world_countries()
-    # Antarctica (id 10) holds no incident and costs a tenth of the canvas.
     background = (
         alt.Chart(countries)
         .mark_geoshape(fill=theme.NO_DATA_COLOR, stroke="white", strokeWidth=0.4)
@@ -414,9 +405,6 @@ def build_sector_attack_heatmap(
 ) -> alt.Chart:
     """Builds a heatmap crossing sector and attack category.
 
-    Stands in for the sector-severity cross first planned, which is
-    impossible because no incident source carries CVSS.
-
     Args:
         df: Unified incident DataFrame (incidents).
         selection: Optional point selection to carry. It dims the cells
@@ -437,8 +425,6 @@ def build_sector_attack_heatmap(
         alt.value(theme.NO_DATA_COLOR),
     )
     encodings = {
-        # labelLimit above the longest sector name, or hosts with narrower
-        # type metrics (such as the Streamlit component) truncate it.
         "y": alt.Y(
             "sector:N",
             title=None,
@@ -463,10 +449,8 @@ def build_sector_attack_heatmap(
     chart = alt.Chart(counts).mark_rect(stroke="white", strokeWidth=1).encode(**encodings)
     if selection is not None:
         chart = chart.add_params(selection)
-    # Safe under a selection: the compiled Vega leaves the text non-interactive.
     low_ink, high_ink = theme.ramp_text_colors()
     labels = (
-        # Documented pairs only, or the text mark prints a literal "null".
         alt.Chart(counts.dropna(subset=["incident_count"]))
         .mark_text(fontSize=theme.scaled_font(11))
         .encode(
@@ -567,7 +551,6 @@ def build_seasonality_chart(
     )
 
 
-# On every severity-by-year view: the step at 2016 is the change of metric.
 CVSS_BREAK_NOTE = (
     "2015 puntúa casi entero en CVSS v2, así que el salto hasta 2016 "
     "es el cambio de escala y no del panorama"
@@ -587,8 +570,6 @@ def _jitter_scores(frame: pd.DataFrame, spread: float = 0.04) -> pd.DataFrame:
         figure and the app draw the same cloud.
     """
     offsets = np.random.default_rng(42).uniform(-spread, spread, len(frame))
-    # CVSS is bounded at 0 and 10. Pulling the centre in keeps the cloud inside
-    # the axis; clipping the result would stack it on the edge.
     centers = frame["cvss_score"].clip(spread, 10.0 - spread)
     return frame.assign(cvss_plot=centers + offsets)
 
@@ -613,8 +594,7 @@ def build_cvss_epss_chart(
 
     A fixed-seed sample of non-exploited CVEs forms the gray context and the
     KEV catalogue is drawn whole on top, colored by known ransomware use.
-    Both layers use the same mark size and opacity, so the difference in
-    visual mass is the difference in count and nothing else.
+    Both layers use the same mark size and opacity.
 
     Args:
         df: Enriched vulnerability DataFrame (vulnerabilities).
@@ -627,13 +607,11 @@ def build_cvss_epss_chart(
         A layered Altair scatter chart.
     """
     scored = df[df["epss_score"] > 0].copy()
-    # Cap on the pool, not the frame, or a filtered selection breaks the sample.
     context_pool = scored[~scored["is_kev"]]
     non_kev = context_pool.sample(
         n=min(background_sample, len(context_pool)), random_state=42
     ).copy()
     kev = scored[scored["is_kev"]].copy()
-    # Without the spread both layers fuse into bars; CVSS takes one decimal.
     non_kev = _jitter_scores(non_kev)
     kev = _jitter_scores(kev)
     exploitation_order = EXPLOITATION_ORDER
@@ -651,7 +629,6 @@ def build_cvss_epss_chart(
         legend=alt.Legend(orient="bottom", direction="horizontal", labelLimit=200),
     )
     x_axis = alt.X("cvss_plot:Q", title="Gravedad (CVSS)", scale=alt.Scale(domain=[0, 10]))
-    # nice=False, or Vega rounds the axis out by a decade and leaves it empty.
     y_axis = alt.Y(
         "epss_score:Q",
         title="Probabilidad de explotación (EPSS, escala log)",
@@ -664,7 +641,6 @@ def build_cvss_epss_chart(
     )
     if selection is not None:
         background = background.transform_filter(selection)
-    # Same weight as the context layer, which is sampled while this one is whole.
     highlights = (
         alt.Chart(kev)
         .mark_circle(size=14, opacity=0.38)
@@ -718,11 +694,6 @@ def build_cvss_epss_chart(
 def build_incidents_by_source_chart(df: pd.DataFrame) -> alt.Chart:
     """Builds the yearly incident count split by source.
 
-    A methodological check rather than an analysis. Every other incident
-    chart merges the two catalogues into one series, where a change in the
-    threat landscape cannot be told from a change in what got documented.
-    Grouped and not stacked, because the comparison is between sources.
-
     Args:
         df: Unified incident DataFrame (incidents).
 
@@ -770,10 +741,6 @@ def _breach_totals(df: pd.DataFrame, key: str) -> pd.DataFrame:
 
 def build_breach_sector_chart(df: pd.DataFrame) -> alt.Chart:
     """Builds the ranking of exposed accounts by sector.
-
-    Sectors span two orders of magnitude, so the smaller bars are stubs. The
-    length stays honest and each bar carries its figure, the same relief the
-    country ranking uses.
 
     Args:
         df: Cleaned HIBP breach DataFrame (breaches).
@@ -846,12 +813,6 @@ def build_breach_year_chart(df: pd.DataFrame, axis_title: str | None = None) -> 
 def build_breach_pair(df: pd.DataFrame) -> alt.HConcatChart:
     """Pairs the two breach views as a single figure.
 
-    Both panels encode the total with bar length on a common axis, the most
-    precise channel of Mazza's table, because every reading the analysis
-    draws from this view is a total. An earlier version plotted one mark per
-    sector-year on a log axis: it showed the spread nobody asked about and
-    left the totals to be summed by eye, which on a log axis cannot be done.
-
     The Streamlit app lays the same two panels out in its own columns, so
     each one stretches with the window. Both are built with the arguments the
     app passes, keeping the captured figure and the screen in step.
@@ -891,7 +852,6 @@ def build_ransomware_payments_chart(df: pd.DataFrame, annotate: bool = True) -> 
         alt.Chart(quarterly)
         .mark_bar(color=theme.ACCENT_COLOR, width={"band": 0.8})
         .encode(
-            # The time unit is what makes this a band scale, and the bars separate.
             x=alt.X("yearquarter(date):T", title="Trimestre", axis=alt.Axis(format="%Y")),
             y=alt.Y("amount_musd:Q", title="Pagos de rescate (millones USD)"),
             tooltip=[
@@ -932,9 +892,6 @@ def build_ransomware_payments_chart(df: pd.DataFrame, annotate: bool = True) -> 
 
 def build_severity_share_chart(df: pd.DataFrame) -> alt.Chart:
     """Builds the 100 %-stacked severity composition per year.
-
-    The part-to-whole counterpart of the absolute temporal chart, where the
-    critical share is readable independently of volume.
 
     Args:
         df: Monthly vulnerability aggregate (vulnerabilities_monthly).
@@ -987,9 +944,6 @@ def build_severity_share_chart(df: pd.DataFrame) -> alt.Chart:
 def build_top_countries_chart(df: pd.DataFrame, top_n: int = 15) -> alt.Chart:
     """Builds the country ranking that complements the choropleth.
 
-    The map gives the spatial pattern, but colour is a low-precision channel
-    and this is where the exact comparison happens.
-
     Args:
         df: Unified incident DataFrame (incidents).
         top_n: Number of countries to display.
@@ -1024,7 +978,6 @@ def build_top_countries_chart(df: pd.DataFrame, top_n: int = 15) -> alt.Chart:
             ],
         )
     )
-    # The tail draws as stubs, so the length stays honest and the number prints.
     labels = (
         alt.Chart(top)
         .mark_text(align="left", dx=4, fontSize=12, color=theme.NEUTRAL_GRAY)
@@ -1063,7 +1016,6 @@ def build_actor_type_chart(df: pd.DataFrame) -> alt.Chart:
                 title="Tipo de actor",
                 scale=alt.Scale(domain=actor_order, range=theme.CATEGORICAL_COLORS[: len(actor_order)]),
             ),
-            # The global rank; by value the bands restack and none can be followed.
             order=alt.Order("actor_rank:Q"),
             tooltip=[
                 alt.Tooltip("year:O", title="Año"),
@@ -1125,9 +1077,6 @@ def _label_offsets(
 def build_ransomware_families_chart(df: pd.DataFrame, top_n: int = 12) -> alt.Chart:
     """Builds the payments-versus-revenue scatter for ransomware families.
 
-    Separates volume from revenue, which tells mass extortion (many small
-    payments) apart from big game hunting (few very large ones).
-
     Args:
         df: Flattened ransomware payment DataFrame (ransomware_payments).
         top_n: Number of families (by revenue) to display.
@@ -1144,7 +1093,6 @@ def build_ransomware_families_chart(df: pd.DataFrame, top_n: int = 12) -> alt.Ch
     )
     families["amount_musd"] = families["amount_usd"] / 1e6
     families["label_dy"] = _label_offsets(families, "payments", "amount_musd")
-    # Rounded out, the scales run a decade past the data and waste half the canvas.
     x_domain = _log_domain(families["payments"])
     y_domain = _log_domain(families["amount_musd"])
     base = alt.Chart(families).encode(
@@ -1165,7 +1113,6 @@ def build_ransomware_families_chart(df: pd.DataFrame, top_n: int = 12) -> alt.Ch
         ],
     )
     points = base.mark_circle(size=90, color=theme.ACCENT_COLOR, stroke=theme.ACCENT_STROKE, strokeWidth=0.5)
-    # One layer per placement: Vega-Lite takes dy as a mark property.
     labels = [
         base.transform_filter(f"datum.label_dy === {offset}")
         .mark_text(align="center", dy=offset, fontSize=11, color=theme.NEUTRAL_GRAY)
@@ -1178,9 +1125,6 @@ def build_ransomware_families_chart(df: pd.DataFrame, top_n: int = 12) -> alt.Ch
 
 
 # --- Linked pairs composed for static capture ------------------------------
-# Vega-Lite only links selections between views of a single specification, so
-# these pairs are composed here instead of at each call site. The app resolves
-# the same links server-side; these specs exist to capture them as a figure.
 
 
 def build_temporal_pair(monthly: pd.DataFrame) -> alt.HConcatChart:
@@ -1269,7 +1213,6 @@ def _sector_share_map(incidents: pd.DataFrame, sector_click: alt.Parameter) -> a
     rows["country_numeric"] = rows["country_numeric"].astype(int)
     rows["country_label"] = rows["country_name"].map(country_label)
     countries = world_countries()
-    # Antarctica (id 10) holds no incident and costs a tenth of the canvas.
     background = (
         alt.Chart(countries)
         .mark_geoshape(fill=theme.NO_DATA_COLOR, stroke="white", strokeWidth=0.4)
@@ -1294,7 +1237,6 @@ def _sector_share_map(incidents: pd.DataFrame, sector_click: alt.Parameter) -> a
             color=alt.Color(
                 "share:Q",
                 title="% del sector",
-                # Log scale, or the dominant country flattens every other.
                 scale=theme.activity_scale(type="log"),
                 legend=alt.Legend(format=".1%"),
             ),

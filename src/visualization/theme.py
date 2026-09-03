@@ -16,7 +16,6 @@ import json
 
 import altair as alt
 
-# Data values, not labels: the app filters and indexof() sorts on them.
 SEVERITY_ORDER = ["LOW", "MEDIUM", "HIGH", "CRITICAL"]
 
 SEVERITY_LABELS = {
@@ -77,7 +76,6 @@ _NO_DATA_DARK = "#2e3542"
 DARK_BACKGROUND = "#0b1220"
 NEUTRAL_GRAY = "#94a3b8"
 
-# Swapped by register_theme(); importing one by name freezes the variant.
 SEVERITY_COLORS = _SEVERITY_LIGHT
 THREAT_GRADIENT = SEVERITY_COLORS
 CATEGORICAL_COLORS = _CATEGORICAL_LIGHT
@@ -85,7 +83,6 @@ ACCENT_COLOR, ACCENT_STROKE = _ACCENT_LIGHT
 KEV_COLOR, KEV_RANSOMWARE_COLOR = _KEV_LIGHT
 NO_DATA_COLOR = _NO_DATA_LIGHT
 
-# Without this, Vega would print 50,000 and 12.0% in a Spanish document.
 NUMBER_LOCALE = {
     "decimal": ",",
     "thousands": ".",
@@ -165,7 +162,6 @@ def _scale_fonts(config: dict, scale: float) -> dict:
             if key in entries:
                 entries[key] = round(entries[key] * scale)
     scaled["config"]["title"]["subtitleFontSize"] = round(13 * scale)
-    # Wider limits, or the scaled axis and legend labels truncate.
     scaled["config"]["legend"]["titleLimit"] = round(200 * scale)
     scaled["config"]["axis"]["labelLimit"] = round(300 * scale)
     return scaled
@@ -204,7 +200,6 @@ def register_theme(dark: bool = False, font_scale: float = 1.0) -> None:
         alt.themes.register("ciberataques", _theme)
         alt.themes.enable("ciberataques")
 
-    # After any renderers.enable(), which discards the embed options.
     alt.renderers.set_embed_options(formatLocale=NUMBER_LOCALE)
 
 

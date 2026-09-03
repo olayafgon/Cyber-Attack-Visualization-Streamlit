@@ -98,7 +98,7 @@ VCDB_ACTION_PRECEDENCE = (
     ("unknown", ATTACK_UNKNOWN),
 )
 
-# Also multi-valued; ransomware wins when present, being the most specific.
+# Also multi-valued; ransomware wins when present.
 EUREPOC_TYPE_PRECEDENCE = (
     ("Ransomware", ATTACK_RANSOMWARE),
     ("Disruption", ATTACK_DISRUPTION),
